@@ -13,6 +13,9 @@
 </div>
 
 ---
+## 🚀 Live Demo
+🔗 https://calmify-ecru.vercel.app/
+---
 
 ## 🎬 Demo
 
@@ -22,8 +25,6 @@
 
 [![Demo Video](https://img.shields.io/badge/▶️_Watch_Demo-YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/watch?v=-mbgNO0BbEo)
 
-
-Checkout the project here--https://calmify-ecru.vercel.app/
 <!-- Replace YOUR_DEMO_VIDEO_LINK_HERE with your actual video URL -->
 <!-- You can also embed a GIF preview here: -->
 <!-- ![Demo GIF](path/to/demo.gif) -->
