@@ -6,32 +6,27 @@ const OpenAI = require('openai');
 
 const router = express.Router();
 
-// Initialize Azure OpenAI client
-const initializeAzureOpenAI = () => {
+// Initialize OpenAI client
+const initializeOpenAI = () => {
   try {
-    if (!process.env.AZURE_OPENAI_API_KEY || !process.env.AZURE_OPENAI_ENDPOINT || !process.env.AZURE_OPENAI_DEPLOYMENT_NAME) {
-      console.log('Azure OpenAI credentials not found, using fallback responses');
+    if (!process.env.OPENAI_API_KEY) {
+      console.log('OpenAI credentials not found, using fallback responses');
       return null;
     }
 
     const client = new OpenAI({
-      apiKey: process.env.AZURE_OPENAI_API_KEY,
-      baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}/openai/deployments/${process.env.AZURE_OPENAI_DEPLOYMENT_NAME}`,
-      defaultQuery: { 'api-version': process.env.AZURE_OPENAI_API_VERSION || '2024-02-15-preview' },
-      defaultHeaders: {
-        'api-key': process.env.AZURE_OPENAI_API_KEY,
-      }
+      apiKey: process.env.OPENAI_API_KEY,
     });
 
-    console.log('✅ Azure OpenAI client initialized for chatbot');
+    console.log('✅ OpenAI client initialized for chatbot');
     return client;
   } catch (error) {
-    console.error('Failed to initialize Azure OpenAI client:', error.message);
+    console.error('Failed to initialize OpenAI client:', error.message);
     return null;
   }
 };
 
-const azureOpenAIClient = initializeAzureOpenAI();
+const openAIClient = initializeOpenAI();
 
 // Database storage for conversations (replacing in-memory storage)
 
@@ -149,8 +144,8 @@ router.post('/chat',
       let responseText;
       let isAIGenerated = false;
 
-      // Try Azure OpenAI first
-      if (azureOpenAIClient) {
+      // Try OpenAI first
+      if (openAIClient) {
         try {
           // Build messages for OpenAI
           const messages = [
@@ -169,8 +164,8 @@ router.post('/chat',
             });
           }
 
-          const response = await azureOpenAIClient.chat.completions.create({
-            model: process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
+          const response = await openAIClient.chat.completions.create({
+            model: process.env.OPENAI_MODEL || 'gpt-4o',
             messages: messages,
             max_tokens: 400,
             temperature: 0.7,
@@ -183,7 +178,7 @@ router.post('/chat',
           isAIGenerated = true;
 
         } catch (aiError) {
-          console.error('Azure OpenAI error:', aiError);
+          console.error('OpenAI error:', aiError);
           responseText = null;
         }
       }

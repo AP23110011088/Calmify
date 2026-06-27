@@ -1,32 +1,27 @@
 const { PHQ9_QUESTIONS, GAD7_QUESTIONS, calculatePHQ9Score, calculateGAD7Score } = require('./crisisDetection');
 const OpenAI = require('openai');
 
-// Initialize Azure OpenAI client
-const initializeAzureOpenAI = () => {
+// Initialize OpenAI client
+const initializeOpenAI = () => {
   try {
-    if (!process.env.AZURE_OPENAI_API_KEY || !process.env.AZURE_OPENAI_ENDPOINT || !process.env.AZURE_OPENAI_DEPLOYMENT_NAME) {
-      console.log('Azure OpenAI credentials not found, using fallback responses');
+    if (!process.env.OPENAI_API_KEY) {
+      console.log('OpenAI credentials not found, using fallback responses');
       return null;
     }
 
     const client = new OpenAI({
-      apiKey: process.env.AZURE_OPENAI_API_KEY,
-      baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}/openai/deployments/${process.env.AZURE_OPENAI_DEPLOYMENT_NAME}`,
-      defaultQuery: { 'api-version': process.env.AZURE_OPENAI_API_VERSION || '2024-02-15-preview' },
-      defaultHeaders: {
-        'api-key': process.env.AZURE_OPENAI_API_KEY,
-      }
+      apiKey: process.env.OPENAI_API_KEY,
     });
 
-    console.log('✅ Azure OpenAI client initialized successfully');
+    console.log('✅ OpenAI client initialized successfully');
     return client;
   } catch (error) {
-    console.error('Failed to initialize Azure OpenAI client:', error.message);
+    console.error('Failed to initialize OpenAI client:', error.message);
     return null;
   }
 };
 
-const azureOpenAIClient = initializeAzureOpenAI();
+const openAIClient = initializeOpenAI();
 
 /**
  * AI Chatbot System for Mental Health Support
@@ -350,11 +345,14 @@ class AIChatbot {
   }
 
   /**
-   * Generate AI-enhanced response using Azure OpenAI
+   * Generate AI-enhanced response using OpenAI
+   * @param {Object} session - The current session document
+   * @param {Object} aiAgent - The AI agent model instance
+   * @param {Array} recentMessages - Recent messages in the session
    */
-  async generateAIEnhancedResponse(intent, conversation, messageText) {
-    if (!azureOpenAIClient) {
-      // Fallback to rule-based response if Azure OpenAI is not available
+  async generateResponse(session, aiAgent, recentMessages) {
+    if (!openAIClient) {
+      // Fallback to rule-based response if OpenAI is not available
       return this.generateResponse(intent, conversation, messageText);
     }
 
@@ -366,9 +364,9 @@ class AIChatbot {
         return this.generateCrisisResponse(conversation, messageText);
       }
 
-      // Build context for Azure OpenAI
-      const systemPrompt = this.buildSystemPrompt(intentType, conversation);
-      const userContext = this.buildUserContext(conversation, messageText);
+      // Build context for OpenAI
+      const systemPrompt = this.buildSystemPrompt(session, aiAgent);
+      const messageContext = this.buildMessageContext(recentMessages);
 
       const messages = [
         {
@@ -397,8 +395,8 @@ class AIChatbot {
         }
       }
 
-      const response = await azureOpenAIClient.chat.completions.create({
-        model: process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
+      const response = await openAIClient.chat.completions.create({
+        model: process.env.OPENAI_MODEL || 'gpt-4o',
         messages: messages,
         max_tokens: 300,
         temperature: 0.7,
@@ -425,21 +423,21 @@ class AIChatbot {
           intent: intentType,
           confidence: confidence,
           aiGenerated: true,
-          model: 'azure-openai',
+          model: 'openai',
           escalate: needsEscalation,
           timestamp: new Date()
         }
       };
 
     } catch (error) {
-      console.error('Azure OpenAI API error:', error);
+      console.error('OpenAI API error:', error);
       // Fallback to rule-based response
       return this.generateResponse(intent, conversation, messageText);
     }
   }
 
   /**
-   * Build system prompt for Azure OpenAI based on intent
+   * Build system prompt for OpenAI based on intent
    */
   buildSystemPrompt(intentType, conversation) {
     const basePrompt = `You are a compassionate AI mental health support assistant for the Saneyar platform. Your primary goals are:
@@ -472,7 +470,7 @@ class AIChatbot {
   }
 
   /**
-   * Build user context for Azure OpenAI
+   * Build user context for OpenAI
    */
   buildUserContext(conversation, messageText) {
     let context = `User message: "${messageText}"`;
@@ -975,10 +973,10 @@ const INTENT_PATTERNS = {
   professional: /\b(therapist|counselor|professional|therapy|treatment|medication)\b/i
 };
 
-// Simple Azure OpenAI chat function for direct use
-const generateAzureOpenAIResponse = async (userMessage, context = {}) => {
-  if (!azureOpenAIClient) {
-    throw new Error('Azure OpenAI client not initialized');
+// Simple OpenAI chat function for direct use
+const generateOpenAIResponse = async (userMessage, context = {}) => {
+  if (!openAIClient) {
+    throw new Error('OpenAI client not initialized');
   }
 
   try {
@@ -1001,8 +999,8 @@ const generateAzureOpenAIResponse = async (userMessage, context = {}) => {
       }
     ];
 
-    const response = await azureOpenAIClient.chat.completions.create({
-      model: process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
+    const response = await openAIClient.chat.completions.create({
+      model: process.env.OPENAI_MODEL || 'gpt-4o',
       messages: messages,
       max_tokens: 200,
       temperature: 0.7,
@@ -1012,20 +1010,20 @@ const generateAzureOpenAIResponse = async (userMessage, context = {}) => {
     const aiResponse = response.choices[0]?.message?.content;
     
     if (!aiResponse) {
-      throw new Error('No response from Azure OpenAI');
+      throw new Error('No response from OpenAI');
     }
 
     return {
       response: aiResponse,
       intent: intent,
       metadata: {
-        model: 'azure-openai',
+        model: 'openai',
         timestamp: new Date()
       }
     };
 
   } catch (error) {
-    console.error('Azure OpenAI error:', error);
+    console.error('OpenAI error:', error);
     throw error;
   }
 };
@@ -1178,7 +1176,7 @@ module.exports = {
   analyzeIntent,
   generateResponse,
   generateAIResponse,
-  generateAzureOpenAIResponse,
+  generateOpenAIResponse,
   shouldRespondToMessage,
   getMentalHealthResources,
   SUPPORTIVE_RESPONSES,
